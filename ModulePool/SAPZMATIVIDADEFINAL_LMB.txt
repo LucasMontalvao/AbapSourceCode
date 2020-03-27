@@ -1,0 +1,16 @@
+*&---------------------------------------------------------------------*
+*& PoolMóds.         SAPMZATIVIDADEFINAL_LMB
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+
+include mzatividadefinal_lmbtop                 .    " global Data
+
+include mzatividadefinal_lmbpbo                 .  " PBO-Modules
+include mzatividadefinal_lmbpai                 .  " PAI-Modules
+include mzatividadefinal_lmbforms                 .  " FORM-Routines
+
+include mzatividadefinal_lmb_alv.

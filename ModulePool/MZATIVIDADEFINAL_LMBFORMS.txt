@@ -1,0 +1,321 @@
+*&---------------------------------------------------------------------*
+*&  Include           MZATIVIDADEFINAL_LMBFORMS
+*&---------------------------------------------------------------------*
+
+form verifica_campos_9001.
+  if v_idprod is initial
+    or v_prodnome is initial
+    or v_precoprod is initial.
+    message errorfieldmess type 'I'.
+    if sy-ucomm eq 'CADPROD'.
+      leave to screen 9001.
+    endif.
+  endif.
+
+  perform get_size using v_prodnome changing stringsize.
+  if stringsize < 10.
+    message warningfieldmess type 'I'.
+    if sy-ucomm eq 'CADPROD'.
+      leave to screen 9001.
+    endif.
+  endif.
+endform.                    "verifica_campos
+
+*&---------------------------------------------------------------------*
+*&      Form  verifica_campos_9003
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form verifica_campos_9003.
+
+  if v_idfornecedor is initial or v_nome_fornecedor is initial.
+    message errorfieldmess type 'I'.
+    if sy-ucomm eq 'CAD_FORN'.
+      leave to screen 9003.
+    endif.
+  endif.
+
+endform.                    "verifica_campos_9003
+
+*&---------------------------------------------------------------------*
+*&      Form  get_size
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->STRING     text
+*      -->STRINGSIZE text
+*----------------------------------------------------------------------*
+form get_size using string type any
+              changing stringsize type i.
+  stringsize = strlen( string ).
+endform.                    "get_size
+
+*&---------------------------------------------------------------------*
+*&      Form  cadastro_prod
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form cadastro_prod.
+
+  data: ls_produto type ty_produto,
+        lt_fornecedor type table of ty_fornecedor.
+
+  select id_fornecedor
+    into table lt_fornecedor
+    from ztfornecedor_lmb
+   where id_fornecedor = v_idforncedor.
+
+  if lt_fornecedor is initial.
+    message 'ID do fornecedor inexistente' type 'I'.
+    exit.
+  endif.
+
+  ls_produto-id_produto     = v_idprod.
+  ls_produto-prodnome       = v_prodnome.
+  ls_produto-id_fornecedor  = v_idforncedor.
+  ls_produto-precoprod      = v_precoprod.
+  ls_produto-data           = sy-datum.
+  ls_produto-hora           = sy-uzeit.
+
+
+
+  insert into ztproduto_lmb values ls_produto.
+
+  call function 'Z_GR_FINAL_LMB'
+    exporting
+      i_idproduto    = v_idprod
+      i_idfornecedor = v_idforncedor
+    tables
+      t_produtos     = gt_fprodutos
+      t_fornecedor   = gt_ffornecedor.
+
+
+  if sy-subrc eq 0.
+    message sucessmess type 'S'.
+    perform clear_fields.
+  elseif sy-subrc ne 0.
+    message errormess type 'I'.
+    perform clear_fields.
+  endif.
+
+endform.                    "cadastro_prod
+
+*&---------------------------------------------------------------------*
+*&      Form  clear_fields
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form clear_fields.
+  clear v_idprod.
+  clear v_prodnome.
+  clear v_precoprod.
+  clear v_idfornecedor.
+  clear v_nome_fornecedor.
+  clear v_idforncedor.
+endform.                    "clear_fields
+
+
+*&---------------------------------------------------------------------*
+*&      Form  sele_prod
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form sele_prod.
+  data: ls_produto like line of gt_produtos.
+
+  if gt_produtos_aux is not initial.
+    select *
+    from ztproduto_lmb
+    into table gt_produtos_aux.
+  endif.
+
+  if v_codprod_i is initial and v_codprod_f is initial. "Nenhum campo preenchido.
+    gt_produtos[] = gt_produtos_aux[].
+    exit.
+  endif.
+
+  if ( v_codprod_i is not initial and v_codprod_f is not initial )
+          and ( v_codprod_i > v_codprod_f )."dois campos preenchidos e primeiro campo maior que o segundo
+    message 'Primeiro campo não pode ser maior que o segundo' type 'I'.
+    call screen 9002.
+  elseif  v_codprod_i is not initial and v_codprod_f is not initial. "dois campos preenchidos
+    clear gt_produtos.
+    loop at gt_produtos_aux into ls_produto where id_produto >= v_codprod_i
+                                         and id_produto <= v_codprod_f.
+      append ls_produto to gt_produtos.
+    endloop.
+
+
+  elseif v_codprod_i is initial and v_codprod_f is not initial. "Somemente o segundo campo preenchido
+    clear gt_produtos.
+    loop at gt_produtos_aux into ls_produto where id_produto <= v_codprod_f.
+      append ls_produto to gt_produtos.
+    endloop.
+  elseif v_codprod_i is not initial and v_codprod_f is initial. "Somente o primeiro campo preenchido
+    clear gt_produtos.
+    loop at gt_produtos_aux into ls_produto where id_produto = v_codprod_i.
+      append ls_produto to gt_produtos.
+    endloop.
+  endif.
+
+endform.                    "sele_prod
+
+
+*&---------------------------------------------------------------------*
+*&      Form  cadastro_forn
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form cadastro_forn.
+
+  data: ls_fornecedor type ty_fornecedor.
+
+  ls_fornecedor-id_fornecedor = v_idfornecedor.
+  ls_fornecedor-nome          = v_nome_fornecedor.
+  ls_fornecedor-data          = sy-datum.
+  ls_fornecedor-hora          = sy-uzeit.
+
+  insert into ztfornecedor_lmb values ls_fornecedor.
+
+  if sy-subrc eq 0.
+    message sucessmess type 'S'.
+    perform clear_fields.
+  elseif sy-subrc ne 0.
+    message errormess type 'I'.
+    perform clear_fields.
+  endif.
+
+endform.                    "cadastro_forn
+
+*&---------------------------------------------------------------------*
+*&      Form  busca_dados_alv_9004
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form busca_dados_alv_9004.
+
+  data: wherecondition type c length 255.
+
+  perform searchfields_alv changing gs_9004.
+
+  if gs_9004-v_nomeprod9004 is not initial  "todos os campos preenchidos.
+    and gs_9004-v_nomeforn9004 is not initial
+    and gs_9004-v_price_9004 is not initial
+    and gs_9004-v_price2_9004 is not initial.
+
+    concatenate '%' gs_9004-v_nomeprod9004 into gs_9004-v_nomeprod9004.
+    concatenate gs_9004-v_nomeprod9004 '%' into gs_9004-v_nomeprod9004.
+
+    concatenate 'prod~nome LIKE gs_9004-v_nomeprod9004'
+       'AND forn~nome_forn LIKE gs_9004-v_nomeforn9004'
+       'AND preco BETWEEN gs_9004-v_price_9004'
+       'AND gs_9004-v_price2_9004.' into wherecondition separated by space.
+
+  elseif ( gs_9004-v_nomeprod9004 is not initial "todos os campos preenchidos mas preços iguais.
+    and gs_9004-v_nomeforn9004 is not initial
+    and gs_9004-v_price_9004 is not initial
+    and gs_9004-v_price2_9004 is not initial ) and
+    ( gs_9004-v_price_9004 eq gs_9004-v_price2_9004 ).
+
+    concatenate '%' gs_9004-v_nomeprod9004 into gs_9004-v_nomeprod9004.
+    concatenate gs_9004-v_nomeprod9004 '%' into gs_9004-v_nomeprod9004.
+
+    concatenate 'prod~nome LIKE gs_9004-v_nomeprod9004'
+       'AND forn~nome_forn LIKE gs_9004-v_nomeforn9004'
+       'AND preco = gs_9004-v_price_9004.' into wherecondition separated by space.
+
+  elseif gs_9004-v_nomeprod9004 is not initial "Campo nome produto preenchido
+    and gs_9004-v_nomeforn9004 is not initial  "e campo nome fornecedor preenchido.
+    and ( gs_9004-v_price_9004 is initial or gs_9004-v_price2_9004 is initial ).
+
+    concatenate '%' gs_9004-v_nomeprod9004 into gs_9004-v_nomeprod9004.
+    concatenate gs_9004-v_nomeprod9004 '%' into gs_9004-v_nomeprod9004.
+
+    concatenate 'prod~nome LIKE gs_9004-v_nomeprod9004'
+       'AND forn~nome_forn LIKE gs_9004-v_nomeforn9004.' into wherecondition separated by space.
+
+  elseif gs_9004-v_nomeprod9004 is not initial "Campo nome produto preenchido
+    and gs_9004-v_nomeforn9004 is initial  "e campos preco preenchido
+    and ( gs_9004-v_price_9004 is not initial or gs_9004-v_price2_9004 is not initial ).
+
+    concatenate '%' gs_9004-v_nomeprod9004 into gs_9004-v_nomeprod9004.
+    concatenate gs_9004-v_nomeprod9004 '%' into gs_9004-v_nomeprod9004.
+
+    concatenate 'prod~nome LIKE gs_9004-v_nomeprod9004'
+       'AND preco BETWEEN gs_9004-v_price_9004'
+       'AND gs_9004-v_price2_9004.' into wherecondition separated by space.
+
+  elseif gs_9004-v_nomeprod9004 is not initial "Somente campo nome preenchido.
+    and ( gs_9004-v_nomeforn9004 is initial and
+          gs_9004-v_price_9004 is initial and
+          gs_9004-v_price2_9004 is initial ).
+
+    concatenate '%' gs_9004-v_nomeprod9004 into gs_9004-v_nomeprod9004.
+    concatenate gs_9004-v_nomeprod9004 '%' into gs_9004-v_nomeprod9004.
+
+    wherecondition = 'prod~nome LIKE gs_9004-v_nomeprod9004.'.
+
+  elseif gs_9004-v_nomeforn9004 is not initial "Somente campo nome forncedor preenchido.
+    and ( gs_9004-v_nomeprod9004 is initial and
+          gs_9004-v_price_9004 is initial and
+          gs_9004-v_price2_9004 is initial ).
+
+    wherecondition = 'forn~nome_forn LIKE gs_9004-v_nomeforn9004.'.
+
+  elseif gs_9004-v_nomeforn9004 is not initial "Campo nome produto não preenchido.
+    and ( gs_9004-v_nomeprod9004 is initial and
+          gs_9004-v_price_9004 is not initial and
+          gs_9004-v_price2_9004 is not initial ).
+
+    concatenate 'forn~nome_forn LIKE gs_9004-v_nomeforn9004'
+       'AND preco BETWEEN gs_9004-v_price_9004'
+       'AND gs_9004-v_price2_9004.' into wherecondition separated by space.
+
+  elseif gs_9004-v_nomeforn9004 is initial "somente campos preeço preenchido.
+    and  gs_9004-v_nomeprod9004 is initial and
+       ( gs_9004-v_price_9004 is not initial and
+          gs_9004-v_price2_9004 is not initial ).
+
+    concatenate 'preco BETWEEN gs_9004-v_price_9004'
+       'AND gs_9004-v_price2_9004' into wherecondition separated by space.
+
+  endif.
+
+  select id_produto forn~id_fornecedor prod~nome preco forn~nome_forn
+      into table gt_alv
+      from ztproduto_lmb as prod
+     inner join ztfornecedor_lmb as forn
+        on prod~id_fornecedor = forn~id_fornecedor
+     where (wherecondition).
+
+  clear wherecondition.
+
+  v_changing = v_changing + 1. "contador para atualizar o alv
+
+endform.                    "busca_dados_alv_9004
+
+*&---------------------------------------------------------------------*
+*&      Form  searchfields_alv
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->GS_9004    text
+*----------------------------------------------------------------------*
+form searchfields_alv changing gs_9004 type ty_fields9004.
+  clear gs_9004.
+
+  gs_9004-v_nomeforn9004 = v_nomeforn9004.
+  gs_9004-v_nomeprod9004 = v_nomeprod9004.
+  gs_9004-v_price_9004   = v_price_9004  .
+  gs_9004-v_price2_9004  = v_price2_9004 .
+
+  if gs_9004-v_price2_9004 is initial.
+    gs_9004-v_price2_9004 = gs_9004-v_price_9004.
+  endif.
+
+  if gs_9004-v_price_9004 is initial.
+    gs_9004-v_price_9004 = gs_9004-v_price2_9004.
+  endif.
+
+
+endform.                    "searchfields_alv

@@ -1,0 +1,76 @@
+*&---------------------------------------------------------------------*
+*& Include MZATIVIDADEFINAL_LMBTOP                           PoolMóds.        SAPMZATIVIDADEFINAL_LMB
+*&
+*&---------------------------------------------------------------------*
+
+program  sapmzatividadefinal_lmb.
+
+types: begin of ty_produto,
+        mandt         type ztproduto_lmb-mandt,
+        id_produto    type ztproduto_lmb-id_produto,
+        id_fornecedor type ztproduto_lmb-id_fornecedor,
+        prodnome      type ztproduto_lmb-nome,
+        precoprod     type ztproduto_lmb-preco,
+        data          type ztproduto_lmb-data,
+        hora          type ztproduto_lmb-hora,
+       end of ty_produto,
+       begin of ty_fornecedor,
+         mandt          type ztfornecedor_lmb-mandt,
+         id_fornecedor  type ztfornecedor_lmb-id_fornecedor,
+         nome           type ztfornecedor_lmb-nome_forn,
+         data           type ztfornecedor_lmb-data,
+         hora           type ztfornecedor_lmb-hora,
+       end of ty_fornecedor,
+       begin of ty_fields9004, "fields dynpro 9004
+         v_nomeforn9004 type ztfornecedor_lmb-nome_forn,
+         v_nomeprod9004 type ztproduto_lmb-nome,
+         v_price_9004   type ztproduto_lmb-preco,
+         v_price2_9004  type ztproduto_lmb-preco,
+       end of ty_fields9004,
+       begin of ty_alv, "relatório ALV
+         id_produto     type ztproduto_lmb-id_produto,
+         id_fornecedor  type ztproduto_lmb-id_fornecedor,
+         nome           type ztproduto_lmb-nome,
+         preco          type ztproduto_lmb-preco,
+         forn_nome      type ztfornecedor_lmb-nome_forn,
+       end of ty_alv.
+
+data: v_idprod          type ztproduto_lmb-id_produto,
+      v_idforncedor     type ztfornecedor_lmb-id_fornecedor,
+      v_prodnome        type ztproduto_lmb-nome,
+      v_precoprod       type ztproduto_lmb-preco,
+      v_data            type ztproduto_lmb-data,
+      v_hora            type ztproduto_lmb-hora,
+      v_codprod_i       type ztproduto_lmb-id_produto,
+      v_codprod_f       type ztproduto_lmb-id_produto,
+      v_nomeforn9004    type ztfornecedor_lmb-nome_forn,
+      v_nomeprod9004    type ztproduto_lmb-nome,
+      v_price_9004      type ztproduto_lmb-preco,
+      v_price2_9004     type ztproduto_lmb-preco,
+      v_changing        type i,
+      v_idfornecedor    type ztfornecedor_lmb-id_fornecedor,
+      v_nome_fornecedor type ztfornecedor_lmb-nome_forn.
+
+
+data: stringsize type i.
+
+data: gt_produtos    type table of ztproduto_lmb,
+      gt_produtos_aux type table of ztproduto_lmb,
+      gt_alv         type table of ty_alv,
+      gt_fprodutos   type table of ztproduto_lmb,
+      gt_ffornecedor type table of ztfornecedor_lmb,
+      gs_produtos    like line of gt_produtos.
+
+data: gs_9004 type ty_fields9004.
+
+"messagens de erro
+constants: errorfieldmess type c length 100 value 'Todos os campos são obrigatórios.',
+           sucessmess type c length 100 value 'Dados armazenados com sucesso.',
+           errormess type c length 100 value 'Dados não inseridos.',
+           warningfieldmess type c length 100 value 'Nome Produto deve ter mais de 10 caracteres'.
+
+data: go_alv type ref to cl_gui_alv_grid,
+      go_container type ref to cl_gui_custom_container.
+
+*&SPWIZARD: DECLARATION OF TABLECONTROL 'TC_9002' ITSELF
+controls: tc_9002 type tableview using screen 9002.

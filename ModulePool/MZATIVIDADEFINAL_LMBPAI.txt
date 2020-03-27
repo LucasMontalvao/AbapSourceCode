@@ -1,0 +1,82 @@
+*&---------------------------------------------------------------------*
+*&  Include           MZATIVIDADEFINAL_LMBPAI
+*&---------------------------------------------------------------------*
+
+module user_command_9000 input.
+  if sy-ucomm eq 'CADPROD'.
+    call screen 9001.
+  endif.
+  if sy-ucomm eq 'CONPROD'.
+    call screen 9002.
+  endif.
+  if sy-ucomm eq 'CADFOR'.
+    call screen 9003.
+  endif.
+  if sy-ucomm eq 'CONFOR'.
+    call screen 9004.
+  endif.
+  if sy-ucomm eq 'BACK' or sy-ucomm eq 'EXIT' or sy-ucomm eq 'CANCEL'.
+    leave to screen 0.
+  endif.
+
+
+endmodule.                    "USER_COMMAND_9000 INPUT
+
+*----------------------------------------------------------------------*
+*  MODULE user_command_9001 INPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+module user_command_9001 input.
+  if sy-ucomm eq 'BACK' or sy-ucomm eq 'EXIT' or sy-ucomm eq 'CANCEL'.
+    leave to screen 9000.
+  endif.
+  if sy-ucomm eq 'CADPROD'.
+    perform verifica_campos_9001.
+    perform cadastro_prod.
+  endif.
+endmodule.                    "user_command_9001 INPUT
+
+*----------------------------------------------------------------------*
+*  MODULE user_command_9002 INPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+module user_command_9002 input.
+  if sy-ucomm eq 'BACK' or sy-ucomm eq 'EXIT' or sy-ucomm eq 'CANCEL'.
+    leave to screen 9000.
+  endif.
+  if sy-ucomm eq 'CONPROD'.
+    perform sele_prod.
+  endif.
+endmodule.                    "user_command_9002 INPUT
+
+*----------------------------------------------------------------------*
+*  MODULE user_command_9002 INPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+module user_command_9003 input.
+  if sy-ucomm eq 'BACK' or sy-ucomm eq 'EXIT' or sy-ucomm eq 'CANCEL'.
+    leave to screen 9000.
+  endif.
+  if sy-ucomm eq 'CAD_FORN'.
+    perform verifica_campos_9003.
+    perform cadastro_forn.
+  endif.
+
+endmodule.                    "user_command_9002 INPUT
+
+*----------------------------------------------------------------------*
+*  MODULE user_command_9004 INPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+module user_command_9004 input.
+  if sy-ucomm eq 'BACK' or sy-ucomm eq 'EXIT' or sy-ucomm eq 'CANCEL'.
+    leave to screen 9000.
+  endif.
+  if sy-ucomm eq 'SEARCH_9004'.
+    perform busca_dados_alv_9004.
+  endif.
+endmodule.                    "user_command_9004 INPUT
