@@ -1,0 +1,355 @@
+*&---------------------------------------------------------------------*
+*&  Include           MZTXT_TO_MARA_LMBFORMS
+*&---------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+*       CLASS lcl_event_receiver DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+class lcl_event_receiver definition.
+  public section.
+    methods:
+      handle_toolbar for event toolbar of cl_gui_alv_grid
+        importing e_object e_interactive,
+      handle_user_command for event user_command of cl_gui_alv_grid
+        importing e_ucomm.
+endclass.                    "lcl_event_receiver DEFINITION
+
+
+*----------------------------------------------------------------------*
+*       CLASS lcl_event_receiver IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+class lcl_event_receiver implementation.
+  method handle_toolbar.
+    constants:
+      c_button_normal type i value 0,
+      c_menu_and_default_button type i value 1,
+      c_menu                    type i value 2,
+      c_separator               type i value 3,
+      c_radio_button            type i value 4,
+      c_checkbox                type i value 5,
+      c_menu_entry              type i value 6.
+
+    data: ls_toolbar type stb_button.
+
+    clear ls_toolbar.
+    move c_separator to ls_toolbar-butn_type..
+    append ls_toolbar to e_object->mt_toolbar.
+
+*   APPEND A NEW BUTTON TO THE TOOLBAR . USE E_OBJECT OF EVENT TOOLBAR .
+*   E_OBJECT IS OF TYPE  CL_ALV_EVENT_TOOLBAR_SET.
+*   THIS CLASS HAS ONE ATTRIBUTE  MT_TOOLBAR WHICH IS OF TABLE TYPE
+*   TTB_BUTTON. THE STRUCTURE IS STB_BUTTON
+
+    clear ls_toolbar.
+    move 'GO_MARA'        to ls_toolbar-function.
+    move  icon_change    to ls_toolbar-icon.
+    move 'Go to Mara'    to ls_toolbar-quickinfo.
+    move 'MARA TRAN'     to ls_toolbar-text.
+    move ' '             to ls_toolbar-disabled.
+    append ls_toolbar    to e_object->mt_toolbar.
+
+  endmethod.                    "handle_toolbar
+
+  method handle_user_command.
+    case e_ucomm.
+      when 'GO_MARA'.
+        perform mara_transaction.
+    endcase.
+  endmethod.                    "handle_user_command
+
+endclass.                    "lcl_event_receiver IMPLEMENTATION
+
+*----------------------------------------------------------*
+* Chamando método que irá buscar o arquivo no diretério local
+*----------------------------------------------------------*
+form f_busca_arquivo.
+*----------------------------------------------------------*
+* Declarando tabelas e wa para trabalhar com File Open Dialog
+*----------------------------------------------------------*
+  data: lt_filetable type         filetable,
+        ls_filetable type line of filetable,
+        l_rc         type i.
+  field-symbols: <fs_filename> like line of lt_filetable.
+
+  clear: ls_filetable.
+
+  call method cl_gui_frontend_services=>file_open_dialog
+    exporting
+      window_title            = 'Selecione o arquivo para Upload'
+      default_extension       = 'TXT'
+      file_filter             = 'Arquivos de Texto (*.TXT)'
+*     initial_directory       = desktop_directory  " Definir um local específico para procurar o arquivo
+    changing
+      file_table              = lt_filetable
+      rc                      = l_rc
+    exceptions
+      file_open_dialog_failed = 1
+      cntl_error              = 2
+      error_no_gui            = 3
+      not_supported_by_gui    = 4
+      others                  = 5.
+
+  if sy-subrc ne 0.
+    message id sy-msgid type sy-msgty number sy-msgno
+          with sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  else.
+* Identifica o arquivo selecionado e joga para o parametro de seleção     READ TABLE lt_filetable INTO ls_filetable INDEX 1.
+    read table lt_filetable assigning <fs_filename> index 1.
+    move <fs_filename>-filename to v_file.
+
+    perform get_txt_content.
+  endif.
+endform.                    "f_busca_arquivo
+
+*&---------------------------------------------------------------------*
+*&      Form  get_txt_content
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form get_txt_content.
+  call function 'GUI_UPLOAD'
+    exporting
+      filename            = v_file
+      filetype            = 'ASC'
+*      has_field_separator = ';'
+    tables
+      data_tab            = gt_entrada.
+
+  perform transform_to_hashed.
+endform.                    "get_txt_content
+
+*&---------------------------------------------------------------------*
+*&      Form  transform_to_hashed
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form transform_to_hashed.
+  data: wa_entrada like line of gt_entrada.
+  data: wa_dados like line of gt_dados.
+
+  loop at gt_entrada into wa_entrada.
+    replace all occurrences of '.' in wa_entrada-content with ''.
+    split wa_entrada-content at ';' into wa_dados-matnr wa_dados-ersda.
+    call function 'CONVERSION_EXIT_ALPHA_INPUT'
+      exporting
+        input  = wa_dados-matnr
+      importing
+        output = wa_dados-matnr.
+    call function 'CONVERT_DATE_TO_INTERNAL'
+      exporting
+        date_external = wa_dados-ersda
+      importing
+        date_internal = wa_dados-ersda.
+    insert wa_dados into table gt_dados.
+  endloop.
+endform.                    "transform_to_hashed
+
+*&---------------------------------------------------------------------*
+*&      Form  get_data_mara
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form get_data_mara.
+
+  if gt_dados is not initial.
+    select matnr ersda
+      into table gt_mara
+      from mara
+      for all entries in gt_dados
+     where matnr = gt_dados-matnr
+       and ersda = gt_dados-ersda.
+
+    if sy-subrc eq 0.
+      perform monta_alv.
+    else.
+      message 'Os dados não existem na Mara!' type 'I'.
+    endif.
+
+  elseif gt_dados is initial.
+    message 'O txt está vázio!' type 'E'.
+  endif.
+
+endform.                    "get_data_mara
+
+*&---------------------------------------------------------------------*
+*&      Form  monta_alv
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form monta_alv.
+
+  data: it_fieldcat   type lvc_t_fcat,
+        wa_fieldcat   like line of it_fieldcat,
+        wa_layout     type lvc_s_layo.
+  data: o_event_receiver    type ref to lcl_event_receiver.
+
+  create object go_container
+    exporting
+      container_name = 'CC_ALV'.
+
+  create object go_alv
+    exporting
+      i_parent = go_container.
+
+  create object o_event_receiver.
+  set handler o_event_receiver->handle_user_command for go_alv.
+  set handler o_event_receiver->handle_toolbar for go_alv.
+
+  wa_fieldcat-ref_table = 'MARA'.
+  wa_fieldcat-ref_field = 'MATNR'.
+  wa_fieldcat-fieldname = 'MATNR'.
+  wa_fieldcat-col_pos   = 1.
+  append wa_fieldcat to it_fieldcat.
+  wa_fieldcat-ref_field = 'ERSDA'.
+  wa_fieldcat-fieldname = 'ERSDA'.
+  wa_fieldcat-col_pos   = 2.
+  append wa_fieldcat to it_fieldcat.
+  clear wa_fieldcat.
+
+  wa_layout-zebra = abap_true.
+
+  call method go_alv->set_table_for_first_display
+    exporting
+*      i_buffer_active               =
+*      i_bypassing_buffer            =
+*      i_consistency_check           =
+*      i_structure_name              =
+*      is_variant                    =
+*      i_save                        =
+*      i_default                     = 'X'
+      is_layout                     = wa_layout
+*      is_print                      =
+*      it_special_groups             =
+*      it_toolbar_excluding          =
+*      it_hyperlink                  =
+*      it_alv_graphics               =
+*      it_except_qinfo               =
+*      ir_salv_adapter               =
+    changing
+      it_outtab                     = gt_mara
+      it_fieldcatalog               = it_fieldcat
+*      it_sort                       =
+*      it_filter                     =
+*    EXCEPTIONS
+*      invalid_parameter_combination = 1
+*      program_error                 = 2
+*      too_many_lines                = 3
+*      others                        = 4
+          .
+  if sy-subrc <> 0.
+*   MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*              WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  endif.
+
+  call method go_alv->set_toolbar_interactive.
+*
+*  CREATE OBJECT go_handler.
+*  SET HANDLER go_handler->handle_data_changed FOR go_alv.
+*
+*  CALL METHOD go_alv->set_ready_for_input
+*    EXPORTING
+*      i_ready_for_input = 1.
+*
+*  CALL METHOD go_alv->register_edit_event
+*    EXPORTING
+*      i_event_id = cl_gui_alv_grid=>mc_evt_modified.
+  call screen 9001.
+
+
+endform.                    "monta_alv
+
+
+*&---------------------------------------------------------------------*
+*&      Form  mara_transaction
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form mara_transaction.
+
+  wa_bdcdata-dynbegin = 'T'.
+  wa_bdcdata-fnam = 'MM03'.
+
+  append wa_bdcdata to it_bdcdata.
+
+  clear wa_bdcdata.
+
+  perform bdc_dynpro      using 'SAPLMGMM' '0060'.
+  perform bdc_field       using 'BDC_CURSOR'
+                                'RMMG1-MATNR'.
+  perform bdc_field       using 'BDC_OKCODE'
+                                '=AUSW'.
+  perform bdc_field       using 'RMMG1-MATNR'
+                                '21'. "Teste alterar valor depois
+  perform bdc_dynpro      using 'SAPLMGMM' '0070'.
+  perform bdc_field       using 'BDC_CURSOR'
+                                'MSICHTAUSW-DYTXT(01)'.
+  perform bdc_field       using 'BDC_OKCODE'
+                                '=ENTR'.
+  perform bdc_field       using 'MSICHTAUSW-KZSEL(01)'
+                                'X'. "Teste alterar valor depois
+  perform bdc_dynpro      using 'SAPLMGMM' '4004'.
+*  PERFORM bdc_field       USING 'BDC_OKCODE'
+*                                '=BABA'.
+*  PERFORM bdc_field       USING 'BDC_CURSOR'
+*                                'RMMG1-MATNR'.
+  perform call_transaction using 'MM03'.
+endform.                    "mara_transaction
+
+*&---------------------------------------------------------------------*
+*&      Form  bdc_dynpro
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->NAME       text
+*      -->VALUE      text
+*----------------------------------------------------------------------*
+form bdc_dynpro using name
+                      value.
+
+  wa_bdcdata-program = name.
+  wa_bdcdata-dynpro = value.
+  wa_bdcdata-dynbegin = 'X'.
+
+  append wa_bdcdata to it_bdcdata.
+
+  clear wa_bdcdata.
+
+endform.                    "bdc_dynpro
+
+*&---------------------------------------------------------------------*
+*&      Form  bdc_field
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->FNAM       text
+*      -->FVAL       text
+*----------------------------------------------------------------------*
+form bdc_field using fnam
+                     fval.
+  wa_bdcdata-fnam = fnam.
+  wa_bdcdata-fval = fval.
+
+  append wa_bdcdata to it_bdcdata.
+
+  clear wa_bdcdata.
+
+endform.                    "bdc_field
+
+*&---------------------------------------------------------------------*
+*&      Form  call_transaction
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->TRAN       text
+*----------------------------------------------------------------------*
+form call_transaction using tran.
+
+  call transaction tran   using it_bdcdata
+                          mode 'A' "sempre A para parar na tela correspondente (Modo assisitido), N modo invisivel.
+                          update vg_s
+                          messages into it_msg.
+endform.                    "call_transaction

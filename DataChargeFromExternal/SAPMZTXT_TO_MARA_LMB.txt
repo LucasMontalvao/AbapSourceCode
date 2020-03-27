@@ -1,0 +1,14 @@
+*&---------------------------------------------------------------------*
+*& PoolMóds.         SAPMZTXT_TO_MARA_LMB
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+
+include mztxt_to_mara_lmbtop                    .    " global Data
+
+ include mztxt_to_mara_lmbpbo                    .  " PBO-Modules
+ include mztxt_to_mara_lmbpai                    .  " PAI-Modules
+ include mztxt_to_mara_lmbforms                  .  " FORM-Routines

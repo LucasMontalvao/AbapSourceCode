@@ -1,0 +1,35 @@
+*&---------------------------------------------------------------------*
+*&  Include           MZTXT_TO_MARA_LMBPAI
+*&---------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+*  MODULE status_9001 INPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+module user_command_9001 input.
+  if sy-ucomm eq 'BACK' or sy-ucomm eq 'EXIT' or sy-ucomm eq 'CANCEL'.
+    leave to screen 0.
+  endif.
+endmodule.                    "status_9001 INPUT
+
+*----------------------------------------------------------------------*
+*  MODULE user_command_9000 INPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+module user_command_9000 input.
+  if sy-ucomm eq 'BACK' or sy-ucomm eq 'EXIT' or sy-ucomm eq 'CANCEL'.
+    leave to screen 0.
+  endif.
+
+  if sy-ucomm eq 'GETFILE'.
+    perform f_busca_arquivo.
+  endif.
+
+  if sy-ucomm eq 'CALL_ALV'.
+    perform get_data_mara.
+  endif.
+
+
+endmodule.                    "user_command_9000 INPUT

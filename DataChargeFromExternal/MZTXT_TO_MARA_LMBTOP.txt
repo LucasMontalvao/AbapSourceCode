@@ -1,0 +1,58 @@
+*&---------------------------------------------------------------------*
+*& Include MZTXT_TO_MARA_LMBTOP                              PoolMóds.        SAPMZTXT_TO_MARA_LMB
+*&
+*&---------------------------------------------------------------------*
+
+program  sapmztxt_to_mara_lmb.
+
+type-pools : truxs, icon, slis.
+
+
+*----------------------------------------------------------*
+* ALV data
+*----------------------------------------------------------*
+data: go_alv              type ref to cl_gui_alv_grid,
+      go_container        type ref to cl_gui_custom_container.
+
+*----------------------------------------------------------*
+* Estrutura TYPES
+*----------------------------------------------------------*
+types: begin of ty_arquivo,
+         matnr type mara-matnr,
+         ersda type mara-ersda,
+       end of ty_arquivo,
+       begin of ty_txt_content,
+         content type c length 256,
+       end of ty_txt_content,
+*----------------------------------------------------------*
+       begin of ty_bdcdata,
+        program   type bdcdata-program,  " Pool de módulos BDC
+        dynpro    type bdcdata-dynpro,   " NÚmero de tela BDC
+        dynbegin  type bdcdata-dynbegin, " Início BDC de uma tela
+        fnam      type bdcdata-fnam,     " Nome do campo
+        fval      type bdcdata-fval,     " Valor do campo BDC
+      end of ty_bdcdata,
+*-----------------------------------------------------------*
+      begin of ty_message,
+        cliente type rf02d-kunnr,        " Código do cliente
+        msgty   type message-msgty,      " Tipo da mensagem
+        msgno   type message-msgno,      " Numero da mensagem
+        msgtx   type message-msgtx,      " Descrição da mensagem
+      end of   ty_message.
+*----------------------------------------------------------*
+* Tabela(s) Interna(s)
+*----------------------------------------------------------*
+data: gt_dados    type hashed table of ty_arquivo with unique key matnr.
+data: gt_mara     type table of ty_arquivo.
+data: gt_entrada  type table of ty_txt_content.
+data: it_bdcdata  type table of ty_bdcdata.
+data: it_msg      type table of bdcmsgcoll with header line.
+
+*----------------------------------------------------------*
+* Estrutura para a bdcdata - Batch input
+*----------------------------------------------------------*
+data: wa_bdcdata like line of it_bdcdata.
+
+data: it_raw type truxs_t_text_data.
+data: vg_s type c value 'S'.
+data: v_file type string.
