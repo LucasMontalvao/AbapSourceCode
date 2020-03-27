@@ -1,0 +1,261 @@
+*&---------------------------------------------------------------------*
+*& Report  Z_TESTE_EXEMPLO_ALV
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+report  z_teste_vbm_alv.
+
+types:  begin of ty_alv,
+          matnr   type mara-matnr,
+          mtart   type mara-mtart,
+          maktx   type makt-maktx,
+          qtde    type p length 8 decimals 2,
+        end of ty_alv,
+        begin of ty_mara,
+          matnr   type mara-matnr,
+          mtart   type mara-mtart,
+        end of ty_mara,
+        begin of ty_makt,
+          matnr   type mara-matnr,
+          maktx   type makt-maktx,
+        end of ty_makt.
+.
+
+data :
+  gt_mara   type table of mara,
+  gs_mara   like line of gt_mara,
+  gt_makt   type table of makt,
+  gs_makt   like line of gt_makt,
+  gt_alv    type table of ty_alv,
+  gs_alv    like line of gt_alv,
+  ok_code   type syucomm.
+
+"Classes
+data: go_alv        type ref to cl_gui_alv_grid,
+      go_container  type ref to cl_gui_custom_container.
+
+*----------------------------------------------------------------------*
+*       CLASS lcl_event_handler DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+class lcl_event_handler definition.
+
+  public section.
+    methods handle_data_changed
+      for event data_changed_finished of cl_gui_alv_grid
+        importing e_modified et_good_cells.
+
+endclass.                    "lcl_event_handler DEFINITION
+
+*----------------------------------------------------------------------*
+*       CLASS lcl_event_handler IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+class lcl_event_handler implementation.
+
+  method handle_data_changed.
+    data: wa_good_cells like line of et_good_cells.
+
+    if e_modified eq abap_true.
+
+      loop at et_good_cells into wa_good_cells.
+        if wa_good_cells-fieldname eq 'QTDE'.
+          read table gt_alv into gs_alv index wa_good_cells-row_id.
+          if sy-subrc is initial.
+            gs_alv-qtde = wa_good_cells-value.
+            modify gt_alv from gs_alv index wa_good_cells-row_id transporting qtde.
+          endif.
+        endif.
+      endloop.
+
+    endif.
+
+  endmethod.                    "handle_data_changed
+
+endclass.                    "lcl_event_handler IMPLEMENTATION
+
+data: go_handler  type ref to lcl_event_handler.
+
+selection-screen begin of block b1.
+select-options : s_matnr for gs_mara-matnr.
+selection-screen end   of block b1.
+
+start-of-selection.
+
+  perform f_busca_dados.
+  perform f_monta_dados.
+  if gt_alv[] is not initial.
+    call screen 9000.
+  endif.
+
+end-of-selection.
+
+*&---------------------------------------------------------------------*
+*&      Form  f_busca_dados
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form f_busca_dados.
+
+  select *
+    from mara
+    into table gt_mara
+  where matnr in s_matnr.
+  if sy-subrc is initial and gt_mara[] is not initial.
+
+    select *
+      from makt
+      into table gt_makt
+      for all entries in gt_mara
+    where matnr eq gt_mara-matnr.
+    if sy-subrc is initial.
+      sort gt_makt by matnr.
+    endif.
+
+  endif.
+
+endform.                    "f_busca_dados
+
+*&---------------------------------------------------------------------*
+*&      Form  f_monta_dados
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form f_monta_dados.
+
+  loop at gt_mara into gs_mara.
+    read table gt_makt into gs_makt with key matnr = gs_mara-matnr binary search.
+    if sy-subrc is initial.
+      gs_alv-matnr = gs_mara-matnr.
+      gs_alv-mtart = gs_mara-mtart.
+      gs_alv-maktx = gs_makt-maktx.
+      append gs_alv to gt_alv.
+    endif.
+  endloop.
+
+endform.                    "f_monta_dados
+
+*----------------------------------------------------------------------*
+*  MODULE STATUS_9000 OUTPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+module status_9000 output.
+  set pf-status 'GUI_9000'.
+endmodule.                    "STATUS_9000 OUTPUT
+*----------------------------------------------------------------------*
+*  MODULE chama_alv OUTPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+module chama_alv output.
+  perform chama_alv.
+endmodule.                    "chama_alv OUTPUT
+*----------------------------------------------------------------------*
+*  MODULE back_exit_cancel OUTPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+module back_exit_cancel input.
+  leave to screen 0.
+endmodule.                    "STATUS_9000 OUTPUT
+
+*&---------------------------------------------------------------------*
+*&      Form  chama_alv
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form chama_alv.
+  data: it_fieldcat   type lvc_t_fcat,
+        wa_fieldcat   like line of it_fieldcat,
+        wa_layout     type lvc_s_layo.
+
+  create object go_container
+    exporting
+      container_name = 'CC_ALV'.
+
+  create object go_alv
+    exporting
+      i_parent = go_container.
+
+  wa_fieldcat-ref_table = 'MARA'.
+  wa_fieldcat-ref_field = 'MATNR'.
+  wa_fieldcat-fieldname = 'MATNR'.
+  wa_fieldcat-col_pos   = 1.
+  append wa_fieldcat to it_fieldcat.
+  wa_fieldcat-ref_field = 'MTART'.
+  wa_fieldcat-fieldname = 'MTART'.
+  wa_fieldcat-col_pos   = 2.
+  append wa_fieldcat to it_fieldcat.
+  clear wa_fieldcat.
+
+  wa_fieldcat-ref_table = 'MAKT'.
+  wa_fieldcat-ref_field = 'MAKTX'.
+  wa_fieldcat-fieldname = 'MAKTX'.
+  wa_fieldcat-col_pos   = 3.
+  append wa_fieldcat to it_fieldcat.
+  clear wa_fieldcat.
+
+  wa_fieldcat-coltext   = 'Qtde.'.
+  wa_fieldcat-scrtext_l = 'Quantidade'.
+  wa_fieldcat-scrtext_m = 'Qtde.'.
+  wa_fieldcat-scrtext_s = 'Qtde.'.
+  wa_fieldcat-fieldname = 'QTDE'.
+  wa_fieldcat-edit      = abap_true.
+  wa_fieldcat-col_pos   = 4.
+  append wa_fieldcat to it_fieldcat.
+  clear wa_fieldcat.
+
+  wa_layout-zebra = abap_true.
+
+  call method go_alv->set_table_for_first_display
+    exporting
+*      i_buffer_active               =
+*      i_bypassing_buffer            =
+*      i_consistency_check           =
+*      i_structure_name              =
+*      is_variant                    =
+*      i_save                        =
+*      i_default                     = 'X'
+      is_layout                     = wa_layout
+*      is_print                      =
+*      it_special_groups             =
+*      it_toolbar_excluding          =
+*      it_hyperlink                  =
+*      it_alv_graphics               =
+*      it_except_qinfo               =
+*      ir_salv_adapter               =
+    changing
+      it_outtab                     = gt_alv
+      it_fieldcatalog               = it_fieldcat
+*      it_sort                       =
+*      it_filter                     =
+*    EXCEPTIONS
+*      invalid_parameter_combination = 1
+*      program_error                 = 2
+*      too_many_lines                = 3
+*      others                        = 4
+          .
+  if sy-subrc <> 0.
+*   MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*              WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  endif.
+
+  create object go_handler.
+  set handler go_handler->handle_data_changed for go_alv.
+
+  call method go_alv->set_ready_for_input
+    exporting
+      i_ready_for_input = 1.
+
+  call method go_alv->register_edit_event
+    exporting
+      i_event_id = cl_gui_alv_grid=>mc_evt_modified.
+
+
+endform.                    "chama_alv

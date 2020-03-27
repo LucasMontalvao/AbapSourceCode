@@ -1,0 +1,53 @@
+*&---------------------------------------------------------------------*
+*& Include ZSUB_SCREEN_LMBTOP                                Report ZSUB_SCREEN_LMB
+*&
+*&---------------------------------------------------------------------*
+report zsub_screen_lmbtop.
+
+
+data: ssn type sy-dynnr,
+      flag type c.
+
+call screen '0001'.
+
+*----------------------------------------------------------------------*
+*  MODULE STATUS_0001 OUTPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+module status_0001 output.
+
+  if flag is initial.
+    ssn = '002'.
+    flag = 'X'.
+  endif.
+
+endmodule.                    "STATUS_0001 OUTPUT
+
+*----------------------------------------------------------------------*
+*  MODULE user_command_0001 INPUT
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+module user_command_0001 input.
+  case sy-ucomm.
+    when 'TEL1'.
+      ssn = '0003'.
+    when 'TEL2'.
+      ssn = ''.
+  endcase.
+
+endmodule.                    "user_command_0001 INPUT
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+process before output.
+module status_0001.
+
+call subscreen ss including sy-cprog ssn.
+*
+process after input.
+
+call subscreen ss.
+
+module user_command_0001.
